@@ -1,5 +1,7 @@
 <?php
 
+namespace DynamicObject;
+
 /**
 * DynamicObject(originally ArrayAndObjectAccess from php.net)
 * Array and Object access at the same time, with a change callback
@@ -7,7 +9,7 @@
 * @authors Yousef Ismaeil <cliprz@gmail.com>, Joshua McKenzie <whereyoucanemailme@gmail.com>
 */
 
-class DynamicObject implements ArrayAccess, Iterator {
+class DynamicObject implements \ArrayAccess, \Iterator {
 
 	/**
 	 * Data
