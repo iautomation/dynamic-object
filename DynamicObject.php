@@ -18,25 +18,51 @@ class DynamicObject implements \ArrayAccess, \Iterator {
 	 * @access private
 	 */
 	private $data = [];
-    /**
-     * onChange callback
-     *
-     * @var closure
-     * @access private
-     */
-    private $change_callback = null;
+	/**
+	 * Store changes keys
+	 *
+	 * @var array
+	 * @access private
+	 */
+	private $changes = [];
+	/**
+	 * onChange callback
+	 *
+	 * @var closure
+	 * @access private
+	 */
+	private $change_callback = null;
+	/**
+	 * save callback
+	 *
+	 * @var closure
+	 * @access private
+	 */
+	private $save_callback = null;
+	/**
+	 * whether or not to store data/changes for closures
+	 *
+	 * @var boolean
+	 * @access private
+	 */
+	public $store_closures = false;
 
-    /**
-     * Construct
-     *
-     * @param array data to initilize
-     * @param closure onChange callback
-     * @access public
-     */
-    public function __construct($data=[], $change_callback=null){
-        $this->data = $data;
-        $this->change_callback = $change_callback;
-    }
+	/**
+	 * Construct
+	 *
+	 * @param array data to initilize
+	 * @param closure onChange callback
+	 * @access public
+	 */
+	public function __construct($data=[], $save_callback=null, $change_callback=null){
+		if(is_array($data)){
+			$this->data = $data;
+		} else if(is_object($data)){
+			$this->data = (array)$data;
+		}
+		$this->change_callback = $change_callback;
+		$this->save_callback = $save_callback;
+	}
 
 	/**
 	 * Get a data by key
@@ -55,11 +81,10 @@ class DynamicObject implements \ArrayAccess, \Iterator {
 	 * @param mixed  The value to set
 	 * @access public 
 	 */
-	public function __set($key,$value) {
+	public function __set($key, $value) {
 		$this->data[$key] = $value;
-        if(!is_null($this->change_callback) && is_callable($this->change_callback)){
-            call_user_func_array($this->change_callback, [$this, $key, $value]);
-        }
+		$this->changes[$key] = $value;
+		$this->doChangeCallback($key, $value);
 	}
 
 	/**
@@ -95,10 +120,8 @@ class DynamicObject implements \ArrayAccess, \Iterator {
 	public function offsetSet($offset,$value) {
 		if (is_null($offset))$offset = count($this->data);
 		$this->data[$offset] = $value;
-        if(!is_null($this->change_callback) && is_callable($this->change_callback)){
-            // $this->change_callback($this, $offset, $value);
-            call_user_func_array($this->change_callback, [$this, $offset, $value]);
-        }
+		$this->changes[$offset] = $value;
+		$this->doChangeCallback($offset, $value);
 	}
 
 	/**
@@ -138,6 +161,30 @@ class DynamicObject implements \ArrayAccess, \Iterator {
 		return $this->offsetExists($offset) ? $this->data[$offset] : null;
 	}
 
+	/**
+	 * Catches any calls on data
+	 *
+	 * @param string method name
+	 * @param string args
+	 * @access public
+	 * @return mixed
+	 */
+	public function __call($method, $args) {
+		if(isset($this->data[$method]))
+			return call_user_func_array($this->data[$method], $args);
+	}
+
+	/**
+	 * Class called as function, will merge arguments into data and changes
+	 *
+	 * @param array arguments
+	 * @access public
+	 */
+	public function __invoke($args=[]){
+		$this->data = array_replace_recursive($this->data, $args);
+		$this->changes = array_replace_recursive($this->changes, $args);
+	}
+
 
 	/**
 	 * ArrayAccess methods
@@ -162,32 +209,97 @@ class DynamicObject implements \ArrayAccess, \Iterator {
 		return key($this->data) !== null;
 	}
 
-    /**
-     * Sets change callback
-     *
-     * @param closure onChange callback
-     * @access public
-     */
-    public function setChangeCallback($change_callback=null) {
-        $this->change_callback = $change_callback;
-    }
+	/**
+	 * Sets change callback
+	 *
+	 * @param closure onChange callback
+	 * @access public
+	 */
+	public function setChangeCallback($change_callback=null) {
+		$this->change_callback = $change_callback;
+	}
 
-    /**
-     * Converts data to array
-     *
-     * @access public
-     */
-    public function toArray() {
-        return $this->data;
-    }
+	/**
+	 * Calls change callback
+	 *
+	 * @param string key
+	 * @param string value
+	 * @access private
+	 */
+	private function doChangeCallback($key, $value){
+		if(!is_null($this->change_callback)){
+			if(is_callable($this->change_callback))
+				return call_user_func_array($this->change_callback, [$this, $key, $value]);
+		}
+	}
 
-    /**
-     * Converts data to object
-     *
-     * @access public
-     */
-    public function toObject() {
-        return (object)$this->data;
-    }
+	/**
+	 * Sets save callback
+	 *
+	 * @param closure save callback
+	 * @access public
+	 */
+	public function setSaveCallback($save_callback=null) {
+		$this->save_callback = $save_callback;
+	}
+
+	/**
+	 * Calls save callback
+	 *
+	 * @param string key
+	 * @param string value
+	 * @access private
+	 */
+	private function doSaveCallback(){
+		if(!is_null($this->save_callback)){
+			if(is_callable($this->save_callback))
+				return call_user_func_array($this->save_callback, [$this, $this->changes]);
+		}
+	}
+
+	/**
+	 * User save action
+	 *
+	 * @access private
+	 */
+	public function save(){
+		return $this->doSaveCallback();
+	}
+
+	/**
+	 * Converts data to array
+	 *
+	 * @access public
+	 */
+	public function dataArray() {
+		return $this->data;
+	}
+
+	/**
+	 * Converts data to object
+	 *
+	 * @access public
+	 */
+	public function dataObject() {
+		return (object)$this->data;
+	}
+
+	/**
+	 * Converts changes to array
+	 *
+	 * @access public
+	 */
+	public function changesArray() {
+		return $this->changes;
+	}
+
+	/**
+	 * Converts changes to object
+	 *
+	 * @access public
+	 */
+	public function changesObject() {
+		return (object)$this->changes;
+	}
 
 }
