@@ -33,7 +33,7 @@ public function changesObject()
 
 ### Basic Usage
 ```
-include 'DynamicObject/DynamicObject.php';
+include 'vendor/autoload.php';
 
 $data = [
 	'one'=>1
