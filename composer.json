@@ -1,6 +1,7 @@
 {
     "name": "iautomation/dynamic-object",
     "description": "Array and Object access at the same time, with save and change callbacks",
+    "keywords": ["php", "dynamic array", "object", "magic array"],
     "type": "library",
     "require": {
     },
