@@ -1,0 +1,20 @@
+{
+    "name": "iautomation/dynamic-object",
+    "description": "Array and Object access at the same time, with save and change callbacks",
+    "type": "library",
+    "require": {
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Joshua McKenzie",
+            "email": "whereyoucanemailme@gmail.com"
+        }
+    ],
+    "minimum-stability": "stable",
+    "autoload": {
+        "psr-0": {
+            "DynamicObject\\": "src/"
+        }
+    }
+}
